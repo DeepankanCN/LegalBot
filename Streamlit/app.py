@@ -85,10 +85,10 @@ def section_2_flow():
             st.rerun()
 
 def section_3_flow():
-    st.header("Section 3 Analysis")
+    st.header("Convert raw data to structured format")
     
     if st.session_state.section3_result is None:
-        if st.button("Perform Section 3 Analysis"):
+        if st.button("Make Structured Output"):
             with st.spinner("Performing analysis..."):
                 # Call your section 3 analysis function here
                 for i in range(5):
@@ -99,6 +99,7 @@ def section_3_flow():
                     num=i+1
                     pages= "Total Pages"+"  " + str(len(text))
                     s="Total Chunks:  "+ str(len(result))
+                    s= s+ " in Section "+ str(i+1)
                     st.write(pages+"   "+ s)
                     #st.write(s)
 
@@ -111,7 +112,8 @@ def section_3_flow():
             st.success("Analysis complete!")
     
     if st.session_state.section3_result is not None:
-        st.write("Analysis Result:")
+        pass
+        # st.write("Analysis Result:")
     #     st.write(st.session_state.section3_result)
 
     col1, col2, col3 = st.columns(3)
@@ -132,10 +134,10 @@ def section_3_flow():
             st.session_state.section4_result = None
             st.rerun()
 def section_4_flow():
-    st.header("Section 4 Analysis")
+    st.header("Loopholes Analysis")
     
     if st.session_state.section4_result is None:
-        if st.button("Perform Section 4 Analysis"):
+        if st.button("Perform Analysis"):
             with st.spinner("Performing analysis..."):
                 # Call your section 4 analysis function here
                 # For example:
