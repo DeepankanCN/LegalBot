@@ -3,6 +3,7 @@ from alj_analysis import analyze_alj_decision
 import os
 from pdfextraction import process_pdf
 from structured import *
+from loopanalysis import load_docs,analyse,getquestion
 
 def main():
     st.title("AI Document Analyzer")
@@ -16,7 +17,8 @@ def main():
         st.session_state.client_processed = False
     if 'section3_result' not in st.session_state:
         st.session_state.section3_result = None
-
+    if 'section4_result' not in st.session_state:
+        st.session_state.section4_result = None
     # Display the appropriate section
     if st.session_state.current_section == 1:
         upload_alj_decision()
@@ -24,6 +26,8 @@ def main():
         section_2_flow()
     elif st.session_state.current_section == 3:
         section_3_flow()
+    elif st.session_state.current_section == 4:
+        section_4_flow()
 
 def upload_alj_decision():
     st.header("Upload ALJ Decision File")
@@ -110,10 +114,71 @@ def section_3_flow():
         st.write("Analysis Result:")
     #     st.write(st.session_state.section3_result)
 
-    col1, col2 = st.columns(2)
+    col1, col2, col3 = st.columns(3)
     with col1:
         if st.button("Back to Section 2"):
             st.session_state.current_section = 2
+            st.rerun()
+    with col2:
+        if st.button("Next to Section 4"):
+            st.session_state.current_section = 4
+            st.rerun()
+    with col3:
+        if st.button("Finish"):
+            st.session_state.current_section = 1
+            st.session_state.alj_processed = False
+            st.session_state.client_processed = False
+            st.session_state.section3_result = None
+            st.session_state.section4_result = None
+            st.rerun()
+def section_4_flow():
+    st.header("Section 4 Analysis")
+    
+    if st.session_state.section4_result is None:
+        if st.button("Perform Section 4 Analysis"):
+            with st.spinner("Performing analysis..."):
+                # Call your section 4 analysis function here
+                # For example:
+                # st.session_state.section4_result = your_section4_function()
+                docs=load_docs()
+                st.write("Total number of Chunks : "+ str(len(docs)))
+                st.write("Processing Questions")
+                a,ques=getquestion()
+                st.success("Questions Processed!")
+                st.write("Combining and Analyzing")
+                secs=analyse(docs,a,ques)
+                st.write(f'Time taken: {secs}')
+
+
+                st.session_state.section4_result = "Sample Section 4 Result"
+            st.success("Analysis complete!")
+    
+    if st.session_state.section4_result is not None:
+        pass
+        # st.write("Analysis Result:")
+        # st.write(st.session_state.section4_result)
+
+    
+    file_path = "D:\legal\Streamlit\loopAnalysis\\analysis.docx"  # Replace with the actual path to your .docx file
+    
+    if os.path.exists(file_path):
+        with open(file_path, "rb") as file:
+            file_contents = file.read()
+        
+        st.download_button(
+            label="Download Result Document",
+            data=file_contents,
+            file_name="analysis_result.docx",  # You can change this name if desired
+            mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+        )
+    else:
+        st.error("The result file is not available. Please run the analysis first.")
+       
+
+    col1, col2 = st.columns(2)
+    with col1:
+        if st.button("Back to Section 3"):
+            st.session_state.current_section = 3
             st.rerun()
     with col2:
         if st.button("Finish"):
@@ -121,6 +186,7 @@ def section_3_flow():
             st.session_state.alj_processed = False
             st.session_state.client_processed = False
             st.session_state.section3_result = None
+            st.session_state.section4_result = None
             st.rerun()
 
 if __name__ == "__main__":
