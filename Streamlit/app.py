@@ -4,6 +4,7 @@ import os
 from pdfextraction import process_pdf
 from structured import *
 from loopanalysis import load_docs,analyse,getquestion
+from brief import split_text,load_analysisdoc,writebrief
 
 def main():
     st.title("AI Document Analyzer")
@@ -19,6 +20,8 @@ def main():
         st.session_state.section3_result = None
     if 'section4_result' not in st.session_state:
         st.session_state.section4_result = None
+    if 'section5_result' not in st.session_state:
+        st.session_state.section5_result = None
     # Display the appropriate section
     if st.session_state.current_section == 1:
         upload_alj_decision()
@@ -28,6 +31,9 @@ def main():
         section_3_flow()
     elif st.session_state.current_section == 4:
         section_4_flow()
+    elif st.session_state.current_section == 5:
+        section_5_flow()
+    
 
 def upload_alj_decision():
     st.header("Upload ALJ Decision File")
@@ -161,7 +167,7 @@ def section_4_flow():
         # st.write(st.session_state.section4_result)
 
     
-    file_path = "D:\legal\Streamlit\loopAnalysis\\analysis.docx"  # Replace with the actual path to your .docx file
+    file_path = "loopAnalysis\\analysis.docx"  # Replace with the actual path to your .docx file
     
     if os.path.exists(file_path):
         with open(file_path, "rb") as file:
@@ -177,10 +183,82 @@ def section_4_flow():
         st.error("The result file is not available. Please run the analysis first.")
        
 
-    col1, col2 = st.columns(2)
+    # col1, col2 = st.columns(2)
+    # with col1:
+    #     if st.button("Back to Section 3"):
+    #         st.session_state.current_section = 3
+    #         st.rerun()
+    # with col2:
+    #     if st.button("Finish"):
+    #         st.session_state.current_section = 1
+    #         st.session_state.alj_processed = False
+    #         st.session_state.client_processed = False
+    #         st.session_state.section3_result = None
+    #         st.session_state.section4_result = None
+    #         st.rerun()
+    col1, col2, col3 = st.columns(3)
     with col1:
         if st.button("Back to Section 3"):
             st.session_state.current_section = 3
+            st.rerun()
+    with col2:
+        if st.button("Next to Brief Draft"):
+            st.session_state.current_section = 5
+            st.rerun()
+    with col3:
+        if st.button("Finish"):
+            st.session_state.current_section = 1
+            st.session_state.alj_processed = False
+            st.session_state.client_processed = False
+            st.session_state.section3_result = None
+            st.session_state.section4_result = None
+            st.session_state.section5_result = None
+            st.rerun()
+def section_5_flow():
+    st.header("Brief Draft  [Section 5]")
+    # if st.session_state.section4_result is None:
+    if st.button("Click here to draft a brief"):
+        with st.spinner("Writing Brief..."):
+            # Call your section 4 analysis function here
+            # For example:
+            # st.session_state.section4_result = your_section4_function()
+            st.write("Loading Brief Document")
+            docs=split_text()
+            st.success("Brief Document Loaded!")
+            st.write("Loading Analysed document")
+            loadedanalysisdoc=load_analysisdoc()
+            st.success("Analysed Document Loaded!")
+            st.write("Combining and Analyzing")
+            brief=writebrief(loadedanalysisdoc,docs)
+
+            st.markdown(brief)
+
+            
+            #st.write(f'Time taken: {secs}')
+
+
+            st.session_state.section4_result = "Sample Section 4 Result"
+        st.success("Analysis complete!")
+    file_path = "briefdraft\\brief.docx"  # Replace with the actual path to your .docx file
+    
+    if os.path.exists(file_path):
+        with open(file_path, "rb") as file:
+            file_contents = file.read()
+        
+        st.download_button(
+            label="Download Result Document",
+            data=file_contents,
+            file_name="brief_result.docx",  # You can change this name if desired
+            mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+        )
+    else:
+        st.error("The result file is not available. Please run the analysis first.")
+    # Add form inputs for brief details
+    
+    col1, col2 = st.columns(2)
+    with col1:
+        if st.button("Back to Section 4"):
+            st.session_state.current_section = 4
             st.rerun()
     with col2:
         if st.button("Finish"):
@@ -189,6 +267,7 @@ def section_4_flow():
             st.session_state.client_processed = False
             st.session_state.section3_result = None
             st.session_state.section4_result = None
+            st.session_state.section5_result = None
             st.rerun()
 
 if __name__ == "__main__":
