@@ -1,8 +1,7 @@
 import fitz  # PyMuPDF
 from PyPDF2 import PdfReader, PdfWriter
 import os
-output_directory = "segregation"
-os.makedirs(output_directory, exist_ok=True)
+
 
 def extract_toc_fitz(pdf_path):
     doc = fitz.open(pdf_path)
@@ -53,6 +52,8 @@ def get_section_pages(toc, section_number, pdf_path):
     return start_page, end_page
 
 def process_pdf(pdf_path):
+    output_directory = "segregation"
+    os.makedirs(output_directory, exist_ok=True)
     toc = extract_toc_fitz(pdf_path)
     valid_letters = ['A', 'B', 'C', 'D', 'E', 'F']
 

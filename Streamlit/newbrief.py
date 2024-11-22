@@ -2,7 +2,6 @@ import fitz  # PyMuPDF
 from langchain_text_splitters import CharacterTextSplitter
 from langchain_community.document_loaders import Docx2txtLoader
 
-
 from dotenv import load_dotenv
 import os
 from langchain_openai import ChatOpenAI,OpenAI
@@ -33,7 +32,7 @@ def extract_text_from_pdf(pdf_path):
     return text_list
 
 
-def split_text_from_briefpdf():
+def split_text():
     pdf_name = 'brief.pdf'  # Replace with your PDF file name
     extracted_text = extract_text_from_pdf(pdf_name)
     
@@ -41,18 +40,23 @@ def split_text_from_briefpdf():
 
 #Initiating a splitter function
     text_splitter = CharacterTextSplitter(
-        separator="\n", chunk_size=200000, chunk_overlap=1000, length_function=len)
+        separator="\n", chunk_size=10000, chunk_overlap=1000, length_function=len)
     result=''
     result = '\n'.join(doc for doc in extracted_text)
     docs = text_splitter.split_text(result)
     print(type(docs))
     print(len(docs))
+    new_docs=[]
+    for i in docs:
+        new_docs.append(Document(page_content=i))
+
+    docs=new_docs
     return docs
 
 
 
-def load_analysisdoc_firstdraft():
-    loader = Docx2txtLoader("briefdraft\\brief.docx")
+def load_analysisdoc():
+    loader = Docx2txtLoader("loopAnalysis\\analysis.docx")
     analyis=loader.load()
     print(len(analyis))
     s=''
@@ -68,7 +72,7 @@ def load_analysisdoc_firstdraft():
     return loaded_analysisdoc
 
 
-def writebrief(s,docs):
+def writebrieffromrecords(docs):
     
     new_docs=[]
     for i in docs:
@@ -92,25 +96,23 @@ def writebrief(s,docs):
 
     # Updated prompt for initial processing to generate exactly 20 questions
     prompt = PromptTemplate.from_template(
-        "These are the possible loopholes from a judge decision that are answered by going through client documents \n This is a brief that you have to refine "+s+
+        "You are given documents, where Judge has made the mistake and you have to write a brief for this"
         "\n Based on the above content, Go through these documents and write a brief, with respective to the above loopholes, these documents will tell you about different type of briefs,and you will have to write a brief for the case, \n {context}"
         "Please be very precise about writing the draft"
-        "You need to include each and every law, that you think should be required to benefit this brief draft"
+        "You need to include each point, that you think should be required to benefit this brief draft"
                 """
 You must quote all relevant laws, include the sender's and receiver's names, addresses, and contact information, provide a concise summary of the arguments, and present the arguments with specific legal citations."""
-         
+     "Also, You have to quote Exhibit Title, and Page Number"    
 "Ensure that every detail is included with the utmost care and precision, as even the smallest element can be critically important. When it comes to legal citations, accuracy is paramount. Every citation must be meticulously checked and presented in its correct form—any minor error or omission could have significant consequences. Be thorough and exacting in your attention to detail, as even a slight oversight can undermine the integrity of the work."  
          "Write Receiver's name and address and Sender's Name and address"
-
-
-         "Please quote Exhibit title and Page Number whenver you are writing brief"
     )
     initial_llm_chain = LLMChain(llm=llm, prompt=prompt)
     initial_response_name = "prev_response"
 
     # Updated prompt for refinement to enhance and finalize the questions, ensuring a total of 20 questions
     prompt_refine = PromptTemplate.from_template(
-            "This is a brief that you have to refine " +s+
+              "You are given documents, where Judge has made the mistake and you have to write a brief for this"
+           
         "\n Based on the above content, Go through these documents and write a brief, with respective to the above loopholes, these documents will tell you about different type of briefs,and you will have to write a brief for the case, \n"
         "Here are the intial info from the document: {prev_response}. "
         "Please be very precise about writing the draft"
@@ -118,12 +120,11 @@ You must quote all relevant laws, include the sender's and receiver's names, add
         "It should contain, Summary of Arguments and Arguments"
         "Make sure, You act like a US Lawyer when you are writing this brief"
         """
-You must quote all relevant laws, include the sender's and receiver's names, addresses, and contact information, provide a concise summary of the arguments, and present the arguments with specific legal citations."""
+         "Also, You have to quote Exhibit Title, and Page Number" 
+You must quote all relevant details include the sender's and receiver's names, addresses, and contact information, provide a concise summary of the arguments, and present the arguments with specific legal citations."""
         
 "Ensure that every detail is included with the utmost care and precision, as even the smallest element can be critically important. When it comes to legal citations, accuracy is paramount. Every citation must be meticulously checked and presented in its correct form—any minor error or omission could have significant consequences. Be thorough and exacting in your attention to detail, as even a slight oversight can undermine the integrity of the work."
          "Write Receiver's name and address and Sender's Name and address"
-
-         "Please quote Exhibit title and Page Number whenver you are writing brief"
     )
     refine_llm_chain = LLMChain(llm=llm, prompt=prompt_refine)
 
@@ -137,7 +138,7 @@ You must quote all relevant laws, include the sender's and receiver's names, add
     )
     t=chain.run(docs)
     plain_text = markdown_to_plain_text(t)
-    create_word_doc(plain_text,"briefdraftnew", "brief.docx")
+    create_word_doc(plain_text,"briefdraft", "brief.docx")
 
     return t
 

@@ -10,6 +10,8 @@ from langchain.chains import RefineDocumentsChain, LLMChain
 from langchain_core.prompts import PromptTemplate
 from docx import Document
 from docx.shared import Pt
+from typing import Any
+from langchain.callbacks.base import BaseCallbackHandler
 
 import time
 load_dotenv(override=True)
@@ -18,9 +20,9 @@ load_dotenv(override=True)
 api_key = os.getenv('open_ai_key')
 
 
-llm = ChatOpenAI(openai_api_key=api_key,model="gpt-4o-mini", temperature=0)
+llm = ChatOpenAI(openai_api_key=api_key,model="gpt-4o", temperature=0)
 
-def load_docs():
+def load_docs(chunk_size):
 
     l=["explanation of why claim was denied at the Initial or Reconsideration Stages by SSA","Denial letters from the Initial and Reconsideration Stages from SSA to client","contains earnings and additional statements from claimant or third party. Also contains Initial Application","work history reports, function reports, disability reports for the claimant and SSA, statements from the claimant or third parties, and resumes for medical or vocational experts for the hearing.","Medical Records for the claimant from multiple providers and Consultative Exam reports from SSA doctors"]
     whole_text=''
@@ -32,13 +34,13 @@ def load_docs():
         data = loader.load()
         whole_text=whole_text+context
         for j in data:
-            whole_text=whole_text+j.page_content+"\n"
+            whole_text="\n"+whole_text+j.page_content+"\n"
         print(len(whole_text))
         print(context)
 
     text_splitter = CharacterTextSplitter(
         separator="\n",
-        chunk_size=50000,
+        chunk_size=chunk_size,
         chunk_overlap=4000,
         length_function=len,
         is_separator_regex=False,
@@ -57,6 +59,7 @@ def getquestion():
     a=''
     for i in data:
         a=a+i.page_content+"\n"
+    
 
    
 
@@ -107,6 +110,37 @@ def getquestion():
 
 def analyse(docs,a,ques):
     start_time = time.time()
+    class SimpleDocTracker(BaseCallbackHandler):
+        def __init__(self):
+            self.doc_count = 0
+            
+        def on_chain_start(self, serialized: dict, inputs: dict, **kwargs) -> None:
+            # This gets called at the start of each chain run
+            if 'input_documents' in inputs:
+                docs = inputs['input_documents']
+                if isinstance(docs, list):
+                    print(f"Starting to process batch of {len(docs)} documents")
+            
+        def on_chain_end(self, outputs: dict, **kwargs) -> None:
+            # This gets called at the end of each chain run
+            if hasattr(self, 'current_docs'):
+                self.doc_count += len(self.current_docs)
+                print(f"Finished processing documents. Total processed so far: {self.doc_count}")
+
+        # Required method implementations
+        def on_llm_start(self, *args, **kwargs) -> None:
+            pass
+
+        def on_llm_end(self, *args, **kwargs) -> None:
+            pass
+
+        def on_llm_error(self, *args, **kwargs) -> None:
+            pass
+
+        def on_chain_error(self, *args, **kwargs) -> None:
+            pass
+    
+    doc_tracker = SimpleDocTracker()
 
 
 
@@ -121,26 +155,79 @@ def analyse(docs,a,ques):
 
 
     # Updated prompt for initial processing to generate exactly 20 questions
+#     prompt = PromptTemplate.from_template(
+#     """
+#     Based on the content provided, carefully go through these documents and identify where the possible loopholes in the judge's decision were actually true. 
+#     Your task is to answer these questions from the documents: ."""+ques+""" 
+
+#     For each question, provide the following:
+#     - A clear answer, supported with relevant quotes from the document (Exhibit Title and Page Number).
+#     - Identify if the assumptions for the loopholes were valid or not.
+#     - If there are multiple possible answers or sources, include all relevant citations.
+
+#     Please answer as concisely as possible. 
+
+#     Context: {context}
+    
+#     """
+# )
     prompt = PromptTemplate.from_template(
-    "These are the possible loopholes from a judge decision \n "+a+
-    "\n Based on the above content, Go through these documents and find, where possible loopholes were actually true : {context}"
-    "These are the questions that you need to answer from the documents, questions are "+ ques+
-        "Please answer in this format \n Question: \n then the answer:\n ."
-    )
+    """
+    Analyze the provided documents and assess whether the identified loopholes in the judge's decision are valid or not.
+    For each question, answer the following:
+    1. Provide a clear answer to the question based on the document.
+    2. Quote specific document sections (Exhibit Title and Page Number) to support your answer.
+    3. Evaluate if the assumptions leading to the identified loophole were correct or not.
+    4. If there are multiple potential answers or sources, include all relevant citations.
+    
+
+    Ideal format is:
+    Exhibit Title:
+    Page Number:
+    Statement: T
+    Keep your answer concise and ensure all claims are supported by clear document references.
+
+    Context: {context}
+    Question:"""+ques
+)
+
+
+
+
     initial_llm_chain = LLMChain(llm=llm, prompt=prompt)
     initial_response_name = "prev_response"
 
     # Updated prompt for refinement to enhance and finalize the questions, ensuring a total of 20 questions
+#     prompt_refine = PromptTemplate.from_template(
+#     """
+#     Based on the previous findings and additional context, analyze the documents to validate the loopholes identified. 
+
+#     Answer the following questions: """ +ques+""""
+    
+#     For each question:
+#     - State the answer with detailed reasoning, quoting relevant document sections (Exhibit Title and Page Number).
+#     - Confirm whether the initial assumptions about the loopholes were true or false.
+#     - Include multiple citations if necessary, but ensure each answer is supported by a clear document reference.
+
+
+#     Context: {context}
+#     Previous Findings: {prev_response}
+#     """
+# ) 
     prompt_refine = PromptTemplate.from_template(
-        "These are the possible loopholes from a judge decision \n "+a+
-    "\n Based on the above content, Go through these documents and find, where possible loopholes were actually true :"
-    "Here are the intial info from the document: {prev_response}. "
-    "These are the questions that you need to answer from the documents, questions are "+ ques+
-    "Answer all the loopholes from the documents with proper reasoning and whether the assumptions for loopholes were true, based on the following additional context: {context}"
-    "Quote each and everything, find the smallest details. \n Please answer in this format \n Question: \n then the answer:\n"
-        "Please answer in this format \n Question: \n then the answer:\n"
-    "Dont write this in markdown format"
-    )
+    """
+    Based on previous findings and any new context provided, re-analyze the documents to verify the validity of the identified loopholes.
+
+    For each question, answer the following:
+    1. State whether the identified loophole is valid, using detailed reasoning and strictly adhering to the document's text.
+    2. Quote exact sections from the document (Exhibit Title and Page Number) to justify your reasoning. **Do not misquote or extrapolate.**
+    3. Confirm if the initial assumptions about the loopholes were correct or false, solely based on what the document directly states.
+    4. Provide any other necessary citations, ensuring each claim is well-supported by clear references from the document itself, with no misinterpretation.
+    You have to help the claimant not the judge, write this very cautiously, if something is against a disabled person in any way, try to ignore it
+    Context: {context}
+    Previous Findings: {prev_response}
+    Question: """+ques
+)
     refine_llm_chain = LLMChain(llm=llm, prompt=prompt_refine)
 
     # Create the RefineDocumentsChain with updated chains and prompts
@@ -150,6 +237,7 @@ def analyse(docs,a,ques):
     document_prompt=document_prompt,
     document_variable_name=document_variable_name,
     initial_response_name=initial_response_name,
+    callbacks=[doc_tracker]
     )
     k=chain.run(docs)
     plain_text = markdown_to_plain_text(k)
